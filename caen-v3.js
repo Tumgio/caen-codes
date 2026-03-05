@@ -960,34 +960,6 @@ var CORR=[
 ["9700","9700","=",""],["9810","9810","=",""],["9820","9820","=",""],["9900","9900","=",""]
 ];
 
-/* ===== TYPE CONFIG ===== */
-var TYPE_LABEL = {
-    'exact': 'Exact match',
-    'split': 'Split',
-    'merged': 'Merged',
-    'recoded': 'Recoded',
-    'new': 'New in Rev.3',
-    'partial': 'Partial'
-};
-var TYPE_CLASS = {
-    'exact': 't-exact',
-    'split': 't-split',
-    'merged': 't-merged',
-    'recoded': 't-recoded',
-    'new': 't-new',
-    'partial': 't-recoded'
-};
-
-/* ===== GET DESCRIPTION FROM DATA ===== */
-function getDesc(code) {
-    for (var i = 0; i < DATA.length; i++) {
-        if (DATA[i][3] === code) return DATA[i][4];
-    }
-    return '';
-}
-
-/* ===== STORE RESULTS ===== */
-var lastResults = [];
 /* ── helpers ── */
 function getDesc(code){
   for(var i=0;i<DATA.length;i++) if(DATA[i][3]===code) return DATA[i][4];
