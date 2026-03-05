@@ -40,10 +40,9 @@ function updateCountdown() {
 
 /* ===== TOAST ===== */
 function showToast(msg) {
-    var t = document.getElementById('toast');
-    var tx = document.getElementById('toastText');
-    if (!t || !tx) return;
-    tx.textContent = msg;
+    var t = document.getElementById('cvToast');
+    if (!t) return;
+    t.textContent = msg;
     t.classList.add('show');
     clearTimeout(t._tid);
     t._tid = setTimeout(function() { t.classList.remove('show'); }, 3000);
