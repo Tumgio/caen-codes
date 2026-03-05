@@ -988,263 +988,137 @@ function getDesc(code) {
 
 /* ===== STORE RESULTS ===== */
 var lastResults = [];
-
-/* ===== SEARCH ===== */
-function searchCorrespondence() {
-    var input = document.getElementById('corrSearchInput');
-    var resultsBox = document.getElementById('corrResults');
-    var noResults = document.getElementById('corrNoResults');
-    var toolbar = document.getElementById('resultsToolbar');
-    var countEl = document.getElementById('resultsCount');
-    var ctaBox = document.getElementById('postSearchCta');
-    var emailBox = document.getElementById('leadCapture');
-
-    if (!input || !resultsBox) return;
-
-    var raw = input.value.trim();
-    if (!raw) { clearSearch(); return; }
-
-    var queries = raw.split(/[\s,;]+/).filter(function(s) { return s.length > 0; });
-    var isKeyword = queries.length === 1 && !/^\d{2,4}$/.test(queries[0]);
-    var matches = [];
-
-    if (isKeyword) {
-        var kw = queries[0].toLowerCase();
-        for (var i = 0; i < CORR.length; i++) {
-            var c = CORR[i];
-            var rev2 = c[0], rev3list = c[1], type = c[2] || 'exact', desc2 = (c[3] || '').toLowerCase();
-            var found = rev2.indexOf(kw) >= 0 || desc2.indexOf(kw) >= 0;
-            if (!found) {
-                for (var j = 0; j < rev3list.length; j++) {
-                    var r3c = typeof rev3list[j] === 'string' ? rev3list[j] : rev3list[j][0];
-                    var r3d = getDesc(r3c).toLowerCase();
-                    if (r3c.indexOf(kw) >= 0 || r3d.indexOf(kw) >= 0) { found = true; break; }
-                }
-            }
-            if (found) matches.push({ rev2: rev2, rev3: rev3list, type: type, desc2: c[3] || '' });
-        }
-    } else {
-        for (var q = 0; q < queries.length; q++) {
-            var code = queries[q].replace(/\D/g, '');
-            if (code.length < 2 || code.length > 4) continue;
-            for (var i = 0; i < CORR.length; i++) {
-                if (CORR[i][0] === code || CORR[i][0].indexOf(code) === 0) {
-                    var c = CORR[i];
-                    /* avoid duplicates */
-                    var dup = false;
-                    for (var d = 0; d < matches.length; d++) { if (matches[d].rev2 === c[0]) { dup = true; break; } }
-                    if (!dup) matches.push({ rev2: c[0], rev3: c[1], type: c[2] || 'exact', desc2: c[3] || '' });
-                }
-            }
-        }
-    }
-
-    lastResults = matches;
-
-    /* Count */
-    var totalMappings = 0;
-    for (var m = 0; m < matches.length; m++) { totalMappings += matches[m].rev3.length; }
-
-    if (countEl) countEl.textContent = 'Found ' + totalMappings + ' mapping' + (totalMappings !== 1 ? 's' : '') + ' for ' + matches.length + ' Rev.2 code' + (matches.length !== 1 ? 's' : '');
-
-    /* No results */
-    if (matches.length === 0) {
-        resultsBox.innerHTML = '';
-        if (noResults) noResults.style.display = 'block';
-        if (toolbar) toolbar.classList.remove('visible');
-        if (ctaBox) ctaBox.classList.remove('visible');
-        if (emailBox) emailBox.classList.remove('visible');
-        return;
-    }
-
-    if (noResults) noResults.style.display = 'none';
-    if (toolbar) toolbar.classList.add('visible');
-    if (ctaBox) ctaBox.classList.add('visible');
-    if (emailBox) emailBox.classList.add('visible');
-
-    /* Render grouped cards */
-    var html = '';
-    var searchTerm = isKeyword ? queries[0] : '';
-
-    for (var m = 0; m < matches.length; m++) {
-        var r = matches[m];
-        var typeLbl = TYPE_LABEL[r.type] || r.type;
-        var typeCls = TYPE_CLASS[r.type] || 't-recoded';
-
-        html += '<div class="cv-group" style="animation-delay:' + (m * 0.08) + 's">';
-
-        /* Group header */
-        html += '<div class="cv-group-hd">';
-        html += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
-        html += '<span class="cv-group-code">Rev.2: ' + hl(r.rev2, searchTerm) + '</span>';
-        if (r.desc2) html += '<span style="font-size:0.85rem;color:var(--text-mid)">' + hl(r.desc2, searchTerm) + '</span>';
-        html += '</div>';
-        html += '<div style="display:flex;align-items:center;gap:8px">';
-        html += '<span class="cv-badge ' + typeCls + '">' + typeLbl + '</span>';
-        html += '<span class="cv-group-cnt">' + r.rev3.length + ' code' + (r.rev3.length !== 1 ? 's' : '') + '</span>';
-        html += '</div>';
-        html += '</div>';
-
-        /* Rows */
-        for (var j = 0; j < r.rev3.length; j++) {
-            var r3 = r.rev3[j];
-            var r3code = typeof r3 === 'string' ? r3 : r3[0];
-            var r3desc = getDesc(r3code);
-
-            html += '<div class="cv-row">';
-            html += '<span class="cv-row-arrow">→</span>';
-            html += '<span class="cv-row-code">' + hl(r3code, searchTerm) + '</span>';
-            html += '<span class="cv-row-desc">' + hl(r3desc, searchTerm) + '</span>';
-            html += '</div>';
-        }
-
-        html += '</div>';
-    }
-
-    resultsBox.innerHTML = html;
-
-    /* Scroll to results */
-    resultsBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+/* ── helpers ── */
+function getDesc(code){
+  for(var i=0;i<DATA.length;i++) if(DATA[i][3]===code) return DATA[i][4];
+  return '';
 }
+var TYPE_LABEL={'=':'Exact',E:'Exact',S:'Divizat',M:'Fuzionat',R:'Recodat',N:'Nou',P:'Parțial'};
+var TYPE_CLASS={'=':'exact',E:'exact',S:'split',M:'merged',R:'recoded',N:'new-code',P:'partial'};
+function showToast(m){var t=document.getElementById('cvToast');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2600)}
+function hl(t,q){if(!q)return t;return t.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark>$1</mark>')}
 
-/* ===== CLEAR ===== */
-function clearSearch() {
-    var input = document.getElementById('corrSearchInput');
-    var resultsBox = document.getElementById('corrResults');
-    var noResults = document.getElementById('corrNoResults');
-    var toolbar = document.getElementById('resultsToolbar');
-    var countEl = document.getElementById('resultsCount');
-    var ctaBox = document.getElementById('postSearchCta');
-    var emailBox = document.getElementById('leadCapture');
+/* ── search ── */
+var lastResults=[];
 
-    if (input) input.value = '';
-    if (resultsBox) resultsBox.innerHTML = '';
-    if (noResults) noResults.style.display = 'none';
-    if (toolbar) toolbar.classList.remove('visible');
-    if (countEl) countEl.textContent = '0 mappings';
-    if (ctaBox) ctaBox.classList.remove('visible');
-    if (emailBox) emailBox.classList.remove('visible');
-    lastResults = [];
-}
-
-/* ===== DEMO ===== */
-function runDemo() {
-    var input = document.getElementById('corrSearchInput');
-    if (!input) return;
-    input.value = '6201, 4711, 3511';
-    searchCorrespondence();
-}
-
-/* ===== COPY ===== */
-function copyResults() {
-    if (lastResults.length === 0) { showToast('No results to copy'); return; }
-    var lines = ['Rev.2\tRev.2 Description\tRev.3\tRev.3 Description\tMapping Type'];
-    for (var i = 0; i < lastResults.length; i++) {
-        var r = lastResults[i];
-        for (var j = 0; j < r.rev3.length; j++) {
-            var r3c = typeof r.rev3[j] === 'string' ? r.rev3[j] : r.rev3[j][0];
-            lines.push(r.rev2 + '\t' + (r.desc2 || '') + '\t' + r3c + '\t' + getDesc(r3c) + '\t' + r.type);
-        }
-    }
-    var text = lines.join('\n');
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function() { showToast('Copied to clipboard!'); });
-    } else {
-        var ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        showToast('Copied to clipboard!');
-    }
-}
-
-/* ===== DOWNLOAD CSV ===== */
-function downloadCSV() {
-    if (lastResults.length === 0) { showToast('No results to download'); return; }
-    var rows = [['Rev.2', 'Rev.2 Description', 'Rev.3', 'Rev.3 Description', 'Mapping Type']];
-    for (var i = 0; i < lastResults.length; i++) {
-        var r = lastResults[i];
-        for (var j = 0; j < r.rev3.length; j++) {
-            var r3c = typeof r.rev3[j] === 'string' ? r.rev3[j] : r.rev3[j][0];
-            rows.push([
-                r.rev2,
-                '"' + (r.desc2 || '').replace(/"/g, '""') + '"',
-                r3c,
-                '"' + getDesc(r3c).replace(/"/g, '""') + '"',
-                r.type
-            ]);
-        }
-    }
-    var csv = rows.map(function(r) { return r.join(','); }).join('\n');
-    var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'caen-rev2-to-rev3.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('CSV downloaded!');
-}
-
-/* ===== LEAD CAPTURE ===== */
-function submitLead() {
-    var emailInput = document.getElementById('leadEmail');
-    var msg = document.getElementById('leadMsg');
-    if (!emailInput) return;
-    var email = emailInput.value.trim();
-    if (!email || email.indexOf('@') < 1) {
-        showToast('Please enter a valid email');
-        return;
-    }
-    /* Show success */
-    emailInput.parentElement.style.display = 'none';
-    if (msg) msg.style.display = 'block';
-    showToast('Thank you — we\'ll be in touch!');
-}
-
-/* ===== STICKY BAR ===== */
-function initSticky() {
-    var bar = document.getElementById('stickyBar');
-    if (!bar) return;
-    window.addEventListener('scroll', function() {
-        if (window.scrollY > 600) {
-            bar.classList.add('visible');
-        } else {
-            bar.classList.remove('visible');
-        }
+function searchCorrespondence(){
+  var raw=document.getElementById('corrSearchInput').value.trim();
+  if(!raw){showToast('Introdu un cod CAEN.');return}
+  var tokens=raw.split(/[\s,;\/]+/).filter(Boolean);
+  var results=[];
+  tokens.forEach(function(tok){
+    var t=tok.replace(/\D/g,'');
+    var isKw=t.length<2;
+    CORR.forEach(function(row){
+      if(isKw){
+        var desc2=getDesc(row[0])||'';var desc3=getDesc(row[1])||'';
+        if((desc2+' '+desc3+' '+(row[3]||'')).toLowerCase().indexOf(tok.toLowerCase())>=0)
+          results.push({rev2:row[0],rev3:row[1],type:row[2],q:tok});
+      } else {
+        if(row[0]===t||row[1]===t) results.push({rev2:row[0],rev3:row[1],type:row[2],q:t});
+      }
     });
+  });
+
+  lastResults=results;
+  var box=document.getElementById('corrResults');
+  if(!box)return;
+  if(!results.length){box.innerHTML='<p class="cv-no-result">Niciun rezultat pentru „'+raw+'".</p>';return}
+
+  var grp={};
+  results.forEach(function(r){
+    if(!grp[r.rev2])grp[r.rev2]=[];
+    grp[r.rev2].push(r);
+  });
+
+  var html='';
+  Object.keys(grp).forEach(function(code){
+    var list=grp[code];
+    var d2=getDesc(code);
+    html+='<div class="cv-res-card">';
+    html+='<div class="cv-res-header">Rev.2: '+hl(code,list[0].q)+' – '+hl(d2,list[0].q)+'</div>';
+    list.forEach(function(r){
+      var lbl=TYPE_LABEL[r.type]||r.type;
+      var cls=TYPE_CLASS[r.type]||'';
+      var d3=getDesc(r.rev3);
+      html+='<div class="cv-res-row"><span class="cv-badge '+cls+'">'+lbl+'</span> ';
+      html+='<strong>'+hl(r.rev3,r.q)+'</strong> – '+hl(d3,r.q);
+      if(r.type!=='='&&r.type!=='E'&&row[3]) html+=' <em class="cv-note">'+row[3]+'</em>';
+      html+='</div>';
+    });
+    html+='</div>';
+  });
+  box.innerHTML=html;
+
+  var ab=document.getElementById('corrActions');if(ab)ab.style.display='flex';
+  var ct=document.getElementById('postSearchCTA');if(ct)ct.style.display='block';
 }
 
-/* ===== INIT ===== */
-document.addEventListener('DOMContentLoaded', function() {
+function clearSearch(){
+  document.getElementById('corrSearchInput').value='';
+  document.getElementById('corrResults').innerHTML='';
+  var ab=document.getElementById('corrActions');if(ab)ab.style.display='none';
+  var ct=document.getElementById('postSearchCTA');if(ct)ct.style.display='none';
+  lastResults=[];
+}
 
-    /* Countdown */
-    updateCountdown();
-    setInterval(updateCountdown, 60000);
+function runDemo(){
+  var inp=document.getElementById('corrSearchInput');
+  if(!inp||inp.value.trim())return;
+  inp.value='6201, 4711, 3511';
+  searchCorrespondence();
+}
 
-    /* FAQ clicks */
-    document.querySelectorAll('.cv-faq-q').forEach(function(q) {
-        q.addEventListener('click', function() { toggleFaq(this); });
-    });
+function copyResults(){
+  if(!lastResults.length){showToast('Nimic de copiat.');return}
+  var txt=lastResults.map(function(r){return r.rev2+' → '+r.rev3+' ('+TYPE_LABEL[r.type]+')'}).join('\n');
+  navigator.clipboard.writeText(txt).then(function(){showToast('Copiat ✓')});
+}
 
-    /* Search on Enter */
-    var input = document.getElementById('corrSearchInput');
-    if (input) {
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                searchCorrespondence();
-            }
-        });
-    }
+function downloadCSV(){
+  if(!lastResults.length){showToast('Nimic de descărcat.');return}
+  var rows='Rev2,Descriere Rev2,Rev3,Descriere Rev3,Tip\n';
+  lastResults.forEach(function(r){
+    rows+=r.rev2+',"'+getDesc(r.rev2)+'",'+r.rev3+',"'+getDesc(r.rev3)+'",'+TYPE_LABEL[r.type]+'\n';
+  });
+  var blob=new Blob([rows],{type:'text/csv'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='caen_rezultate.csv';a.click();
+}
 
-    /* Sticky bar */
-    initSticky();
+function submitLead(){
+  var email=document.getElementById('leadEmail').value.trim();
+  if(!email||email.indexOf('@')<1){showToast('Adaugă un e-mail valid.');return}
+  document.getElementById('leadFormInner').innerHTML='<p style="color:var(--cv-accent);font-weight:600">Mulțumim! Te vom contacta în curând. ✓</p>';
+  showToast('Trimis ✓');
+}
 
-    /* Auto-demo after 1.5s */
-    setTimeout(runDemo, 1500);
+function initScrollTop(){
+  var btn=document.getElementById('scrollTopBtn');
+  if(!btn)return;
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>600)});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});
+}
+
+function initSticky(){
+  var bar=document.getElementById('stickyBar');
+  if(!bar)return;
+  window.addEventListener('scroll',function(){
+    bar.classList.toggle('visible',window.scrollY>600);
+  });
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  updateCountdown();
+  setInterval(updateCountdown,60000);
+  document.querySelectorAll('.cv-faq-q').forEach(function(q){
+    q.addEventListener('click',function(){toggleFaq(this)});
+  });
+  var inp=document.getElementById('corrSearchInput');
+  if(inp) inp.addEventListener('keydown',function(e){
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();searchCorrespondence();}
+  });
+  initScrollTop();
+  initSticky();
+  setTimeout(runDemo,1500);
 });
