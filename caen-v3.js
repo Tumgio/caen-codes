@@ -960,137 +960,224 @@ var CORR=[
 ["9700","9700","=",""],["9810","9810","=",""],["9820","9820","=",""],["9900","9900","=",""]
 ];
 
-/* ── helpers ── */
-function getDesc(code){
-  for(var i=0;i<DATA.length;i++) if(DATA[i][3]===code) return DATA[i][4];
-  return '';
+/* ===== TYPE CONFIG ===== */
+var TYPE_LABEL = {
+    '=': 'Exact', 'S': 'Split', 'M': 'Merged', 'R': 'Recoded', 'N': 'New', 'P': 'Partial'
+};
+var TYPE_CLASS = {
+    '=': 't-exact', 'S': 't-split', 'M': 't-merged', 'R': 't-recoded', 'N': 't-new', 'P': 't-recoded'
+};
+
+/* ===== GET DESCRIPTION FROM DATA ===== */
+function getDesc(code) {
+    for (var i = 0; i < DATA.length; i++) {
+        if (DATA[i][3] === code) return DATA[i][4];
+    }
+    return '';
 }
-var TYPE_LABEL={'=':'Exact',E:'Exact',S:'Divizat',M:'Fuzionat',R:'Recodat',N:'Nou',P:'Parțial'};
-var TYPE_CLASS={'=':'exact',E:'exact',S:'split',M:'merged',R:'recoded',N:'new-code',P:'partial'};
-function showToast(m){var t=document.getElementById('cvToast');if(!t)return;t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2600)}
-function hl(t,q){if(!q)return t;return t.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark>$1</mark>')}
 
-/* ── search ── */
-var lastResults=[];
+/* ===== STORE RESULTS ===== */
+var lastResults = [];
 
-function searchCorrespondence(){
-  var raw=document.getElementById('corrSearchInput').value.trim();
-  if(!raw){showToast('Introdu un cod CAEN.');return}
-  var tokens=raw.split(/[\s,;\/]+/).filter(Boolean);
-  var results=[];
-  tokens.forEach(function(tok){
-    var t=tok.replace(/\D/g,'');
-    var isKw=t.length<2;
-    CORR.forEach(function(row){
-      if(isKw){
-        var desc2=getDesc(row[0])||'';var desc3=getDesc(row[1])||'';
-        if((desc2+' '+desc3+' '+(row[3]||'')).toLowerCase().indexOf(tok.toLowerCase())>=0)
-          results.push({rev2:row[0],rev3:row[1],type:row[2],q:tok});
-      } else {
-        if(row[0]===t||row[1]===t) results.push({rev2:row[0],rev3:row[1],type:row[2],q:t});
-      }
+/* ===== SEARCH ===== */
+function searchCorrespondence() {
+    var input = document.getElementById('corrSearchInput');
+    var resultsBox = document.getElementById('corrResults');
+    var noResults = document.getElementById('corrNoResults');
+    var toolbar = document.getElementById('resultsToolbar');
+    var countEl = document.getElementById('resultsCount');
+    var ctaBox = document.getElementById('postSearchCta');
+    var emailBox = document.getElementById('leadCapture');
+
+    if (!input || !resultsBox) return;
+
+    var raw = input.value.trim();
+    if (!raw) { clearSearch(); return; }
+
+    var queries = raw.split(/[\s,;]+/).filter(function(s) { return s.length > 0; });
+    var isKeyword = queries.length === 1 && !/^\d{2,4}$/.test(queries[0]);
+    var matches = [];
+
+    if (isKeyword) {
+        var kw = queries[0].toLowerCase();
+        var seen = {};
+        for (var i = 0; i < CORR.length; i++) {
+            var c = CORR[i];
+            var rev2 = c[0], rev3 = c[1], type = c[2], note = c[3] || '';
+            var desc2 = getDesc(rev2).toLowerCase();
+            var desc3 = getDesc(rev3).toLowerCase();
+            if (rev2.indexOf(kw) >= 0 || rev3.indexOf(kw) >= 0 || desc2.indexOf(kw) >= 0 || desc3.indexOf(kw) >= 0 || note.toLowerCase().indexOf(kw) >= 0) {
+                var key = rev2 + '-' + rev3;
+                if (!seen[key]) { seen[key] = true; matches.push({ rev2: rev2, rev3: rev3, type: type, note: note }); }
+            }
+        }
+    } else {
+        for (var q = 0; q < queries.length; q++) {
+            var code = queries[q].replace(/\D/g, '');
+            if (code.length < 2 || code.length > 4) continue;
+            for (var i = 0; i < CORR.length; i++) {
+                if (CORR[i][0] === code || CORR[i][0].indexOf(code) === 0) {
+                    var c = CORR[i];
+                    matches.push({ rev2: c[0], rev3: c[1], type: c[2], note: c[3] || '' });
+                }
+            }
+        }
+    }
+
+    lastResults = matches;
+
+    /* Group by rev2 */
+    var groups = {};
+    var groupOrder = [];
+    for (var m = 0; m < matches.length; m++) {
+        var r = matches[m];
+        if (!groups[r.rev2]) { groups[r.rev2] = []; groupOrder.push(r.rev2); }
+        groups[r.rev2].push(r);
+    }
+
+    var totalMappings = matches.length;
+    var totalGroups = groupOrder.length;
+
+    if (countEl) countEl.textContent = 'Found ' + totalMappings + ' mapping' + (totalMappings !== 1 ? 's' : '') + ' for ' + totalGroups + ' Rev.2 code' + (totalGroups !== 1 ? 's' : '');
+
+    if (matches.length === 0) {
+        resultsBox.innerHTML = '';
+        if (noResults) noResults.style.display = 'block';
+        if (toolbar) toolbar.classList.remove('visible');
+        if (ctaBox) ctaBox.classList.remove('visible');
+        if (emailBox) emailBox.classList.remove('visible');
+        return;
+    }
+
+    if (noResults) noResults.style.display = 'none';
+    if (toolbar) toolbar.classList.add('visible');
+    if (ctaBox) ctaBox.classList.add('visible');
+    if (emailBox) emailBox.classList.add('visible');
+
+    var searchTerm = isKeyword ? queries[0] : '';
+    var html = '';
+    for (var g = 0; g < groupOrder.length; g++) {
+        var code = groupOrder[g];
+        var list = groups[code];
+        var d2 = getDesc(code);
+        var typeLbl = TYPE_LABEL[list[0].type] || list[0].type;
+        var typeCls = TYPE_CLASS[list[0].type] || '';
+
+        html += '<div class="cv-group" style="animation-delay:' + (g * 0.08) + 's">';
+        html += '<div class="cv-group-hd">';
+        html += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
+        html += '<span class="cv-group-code">Rev.2: ' + hl(code, searchTerm) + '</span>';
+        if (d2) html += '<span style="font-size:0.85rem;color:var(--text-mid)">' + hl(d2, searchTerm) + '</span>';
+        html += '</div>';
+        html += '<div style="display:flex;align-items:center;gap:8px">';
+        html += '<span class="cv-badge ' + typeCls + '">' + typeLbl + '</span>';
+        html += '<span class="cv-group-cnt">' + list.length + ' code' + (list.length !== 1 ? 's' : '') + '</span>';
+        html += '</div>';
+        html += '</div>';
+
+        for (var j = 0; j < list.length; j++) {
+            var r = list[j];
+            var r3desc = getDesc(r.rev3);
+            var rLbl = TYPE_LABEL[r.type] || r.type;
+            var rCls = TYPE_CLASS[r.type] || '';
+            html += '<div class="cv-row">';
+            html += '<span class="cv-row-arrow">→</span>';
+            html += '<span class="cv-row-code">' + hl(r.rev3, searchTerm) + '</span>';
+            html += '<span class="cv-row-desc">' + hl(r3desc, searchTerm);
+            if (r.note) html += ' <em style="color:var(--text-light);font-size:0.8rem">(' + r.note + ')</em>';
+            html += '</span>';
+            if (list.length > 1) html += '<span class="cv-badge ' + rCls + '">' + rLbl + '</span>';
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+    resultsBox.innerHTML = html;
+}
+
+/* ===== CLEAR ===== */
+function clearSearch() {
+    var input = document.getElementById('corrSearchInput');
+    var resultsBox = document.getElementById('corrResults');
+    var noResults = document.getElementById('corrNoResults');
+    var toolbar = document.getElementById('resultsToolbar');
+    var ctaBox = document.getElementById('postSearchCta');
+    var emailBox = document.getElementById('leadCapture');
+    if (input) input.value = '';
+    if (resultsBox) resultsBox.innerHTML = '';
+    if (noResults) noResults.style.display = 'none';
+    if (toolbar) toolbar.classList.remove('visible');
+    if (ctaBox) ctaBox.classList.remove('visible');
+    if (emailBox) emailBox.classList.remove('visible');
+    lastResults = [];
+}
+
+/* ===== DEMO ===== */
+function runDemo() {
+    var inp = document.getElementById('corrSearchInput');
+    if (!inp) return;
+    inp.value = '6201, 4711, 3511';
+    searchCorrespondence();
+}
+
+/* ===== COPY ===== */
+function copyResults() {
+    if (!lastResults.length) { showToast('Nothing to copy.'); return; }
+    var txt = lastResults.map(function(r) {
+        return r.rev2 + ' → ' + r.rev3 + ' (' + (TYPE_LABEL[r.type] || r.type) + ') ' + getDesc(r.rev3);
+    }).join('\n');
+    navigator.clipboard.writeText(txt).then(function() { showToast('Copied to clipboard ✓'); });
+}
+
+/* ===== CSV ===== */
+function downloadCSV() {
+    if (!lastResults.length) { showToast('Nothing to download.'); return; }
+    var rows = 'Rev2,Description Rev2,Rev3,Description Rev3,Type,Note\n';
+    lastResults.forEach(function(r) {
+        rows += r.rev2 + ',"' + getDesc(r.rev2) + '",' + r.rev3 + ',"' + getDesc(r.rev3) + '",' + (TYPE_LABEL[r.type] || r.type) + ',"' + (r.note || '') + '"\n';
     });
-  });
+    var blob = new Blob([rows], { type: 'text/csv' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'caen_rev2_to_rev3.csv'; a.click();
+}
 
-  lastResults=results;
-  var box=document.getElementById('corrResults');
-  if(!box)return;
-  if(!results.length){box.innerHTML='<p class="cv-no-result">Niciun rezultat pentru „'+raw+'".</p>';return}
+/* ===== LEAD FORM ===== */
+function submitLead() {
+    var email = document.getElementById('leadEmail').value.trim();
+    if (!email || email.indexOf('@') < 1) { showToast('Please enter a valid email.'); return; }
+    var msg = document.getElementById('leadMsg');
+    if (msg) msg.style.display = 'block';
+    showToast('Thank you ✓');
+}
 
-  var grp={};
-  results.forEach(function(r){
-    if(!grp[r.rev2])grp[r.rev2]=[];
-    grp[r.rev2].push(r);
-  });
+/* ===== SCROLL TO TOP ===== */
+function initScrollTop() {
+    var btn = document.getElementById('scrollTopBtn');
+    if (!btn) return;
+    window.addEventListener('scroll', function() { btn.classList.toggle('show', window.scrollY > 600); });
+    btn.addEventListener('click', function() { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+}
 
-  var html='';
-  Object.keys(grp).forEach(function(code){
-    var list=grp[code];
-    var d2=getDesc(code);
-    html+='<div class="cv-res-card">';
-    html+='<div class="cv-res-header">Rev.2: '+hl(code,list[0].q)+' – '+hl(d2,list[0].q)+'</div>';
-    list.forEach(function(r){
-      var lbl=TYPE_LABEL[r.type]||r.type;
-      var cls=TYPE_CLASS[r.type]||'';
-      var d3=getDesc(r.rev3);
-      html+='<div class="cv-res-row"><span class="cv-badge '+cls+'">'+lbl+'</span> ';
-      html+='<strong>'+hl(r.rev3,r.q)+'</strong> – '+hl(d3,r.q);
-      if(r.type!=='='&&r.type!=='E'&&row[3]) html+=' <em class="cv-note">'+row[3]+'</em>';
-      html+='</div>';
+/* ===== STICKY BAR ===== */
+function initSticky() {
+    var bar = document.getElementById('stickyBar');
+    if (!bar) return;
+    window.addEventListener('scroll', function() {
+        bar.classList.toggle('visible', window.scrollY > 600);
     });
-    html+='</div>';
-  });
-  box.innerHTML=html;
-
-  var ab=document.getElementById('corrActions');if(ab)ab.style.display='flex';
-  var ct=document.getElementById('postSearchCTA');if(ct)ct.style.display='block';
 }
 
-function clearSearch(){
-  document.getElementById('corrSearchInput').value='';
-  document.getElementById('corrResults').innerHTML='';
-  var ab=document.getElementById('corrActions');if(ab)ab.style.display='none';
-  var ct=document.getElementById('postSearchCTA');if(ct)ct.style.display='none';
-  lastResults=[];
-}
-
-function runDemo(){
-  var inp=document.getElementById('corrSearchInput');
-  if(!inp||inp.value.trim())return;
-  inp.value='6201, 4711, 3511';
-  searchCorrespondence();
-}
-
-function copyResults(){
-  if(!lastResults.length){showToast('Nimic de copiat.');return}
-  var txt=lastResults.map(function(r){return r.rev2+' → '+r.rev3+' ('+TYPE_LABEL[r.type]+')'}).join('\n');
-  navigator.clipboard.writeText(txt).then(function(){showToast('Copiat ✓')});
-}
-
-function downloadCSV(){
-  if(!lastResults.length){showToast('Nimic de descărcat.');return}
-  var rows='Rev2,Descriere Rev2,Rev3,Descriere Rev3,Tip\n';
-  lastResults.forEach(function(r){
-    rows+=r.rev2+',"'+getDesc(r.rev2)+'",'+r.rev3+',"'+getDesc(r.rev3)+'",'+TYPE_LABEL[r.type]+'\n';
-  });
-  var blob=new Blob([rows],{type:'text/csv'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='caen_rezultate.csv';a.click();
-}
-
-function submitLead(){
-  var email=document.getElementById('leadEmail').value.trim();
-  if(!email||email.indexOf('@')<1){showToast('Adaugă un e-mail valid.');return}
-  document.getElementById('leadFormInner').innerHTML='<p style="color:var(--cv-accent);font-weight:600">Mulțumim! Te vom contacta în curând. ✓</p>';
-  showToast('Trimis ✓');
-}
-
-function initScrollTop(){
-  var btn=document.getElementById('scrollTopBtn');
-  if(!btn)return;
-  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>600)});
-  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});
-}
-
-function initSticky(){
-  var bar=document.getElementById('stickyBar');
-  if(!bar)return;
-  window.addEventListener('scroll',function(){
-    bar.classList.toggle('visible',window.scrollY>600);
-  });
-}
-
-document.addEventListener('DOMContentLoaded',function(){
-  updateCountdown();
-  setInterval(updateCountdown,60000);
-  document.querySelectorAll('.cv-faq-q').forEach(function(q){
-    q.addEventListener('click',function(){toggleFaq(this)});
-  });
-  var inp=document.getElementById('corrSearchInput');
-  if(inp) inp.addEventListener('keydown',function(e){
-    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();searchCorrespondence();}
-  });
-  initScrollTop();
-  initSticky();
-  setTimeout(runDemo,1500);
+/* ===== INIT ===== */
+document.addEventListener('DOMContentLoaded', function() {
+    updateCountdown();
+    setInterval(updateCountdown, 60000);
+    document.querySelectorAll('.cv-faq-q').forEach(function(q) {
+        q.addEventListener('click', function() { toggleFaq(this); });
+    });
+    var inp = document.getElementById('corrSearchInput');
+    if (inp) inp.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); searchCorrespondence(); }
+    });
+    initScrollTop();
+    initSticky();
+    setTimeout(runDemo, 1500);
 });
