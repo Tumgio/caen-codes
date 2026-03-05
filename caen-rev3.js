@@ -1,11 +1,3 @@
-/* ===== TAB SWITCHING ===== */
-function switchTab(tab,btn){
-    document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active')});
-    document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active')});
-    btn.classList.add('active');
-    document.getElementById('panel-'+tab).classList.add('active');
-}
-
 /* ===== FAQ ===== */
 function toggleFaq(el){
     var wasOpen=el.classList.contains('open');
@@ -13,7 +5,7 @@ function toggleFaq(el){
     if(!wasOpen){el.classList.add('open');el.nextElementSibling.classList.add('open')}
 }
 
-/* ===== CAEN REV.3 DATA ===== */
+/* ===== CAEN REV.3 DATA (for descriptions) ===== */
 var DATA=[
 ["A","Agriculture, Forestry and Fishing","01","0111","Cultivation of cereals (excl. rice), leguminous plants and oilseed plants"],
 ["A","Agriculture, Forestry and Fishing","01","0112","Cultivation of rice"],
@@ -667,7 +659,8 @@ var DATA=[
 ["U","Activities of Households as Employers","98","9820","Undifferentiated service-producing activities of private households"],
 ["V","Activities of Extraterritorial Organisations","99","9900","Activities of extraterritorial organisations and bodies"]
 ];
-/* ===== CORRESPONDENCE DATA: [rev2, rev3, type, note] ===== */
+
+/* ===== CORRESPONDENCE DATA ===== */
 var CORR=[
 ["0111","0111","=",""],["0112","0112","=",""],["0113","0113","=",""],["0114","0114","=",""],["0115","0115","=",""],["0116","0116","=",""],
 ["0119","0113","S","Cultivation of root vegetables and tubers moved here"],["0119","0119","S","Remaining activities"],
@@ -784,8 +777,7 @@ var CORR=[
 ["3831","3831","S","Waste incineration without energy"],["3831","3832","S","Landfill activities"],
 ["3832","3833","R","Other waste disposal"],
 ["3900","3900","=",""],
-["4110","4100","=","Construction of buildings"],
-["4120","4100","=","Construction of buildings"],
+["4110","4100","=","Construction of buildings"],["4120","4100","=","Construction of buildings"],
 ["4211","4211","=",""],["4212","4212","=",""],["4213","4213","=",""],["4221","4221","=",""],["4222","4222","=",""],["4291","4291","=",""],["4299","4299","=",""],
 ["4311","4311","=",""],["4312","4312","=",""],["4313","4313","=",""],["4321","4321","=",""],["4322","4322","=",""],
 ["4329","4323","S","Insulation work"],["4329","4324","S","Other construction installation"],
@@ -871,8 +863,7 @@ var CORR=[
 ["7420","7420","=",""],["7430","7430","=",""],
 ["7490","7330","S","PR and communication"],["7490","7491","S","Patent brokerage"],["7490","7499","S","Other professional activities"],
 ["7500","7500","=",""],
-["7711","7711","=",""],["7712","7712","=",""],["7721","7721","=",""],
-["7722","7722","=",""],
+["7711","7711","=",""],["7712","7712","=",""],["7721","7721","=",""],["7722","7722","=",""],
 ["7731","7731","=",""],["7732","7732","=",""],["7733","7733","=",""],["7734","7734","=",""],["7735","7735","=",""],
 ["7739","7739","=",""],["7740","7740","=",""],
 ["7810","7810","=",""],["7820","7820","=",""],
@@ -895,8 +886,7 @@ var CORR=[
 ["8690","8691","S","Diagnostic imaging and labs"],["8690","8692","S","Ambulance activities"],["8690","8693","S","Psychologists"],["8690","8694","S","Nurses and midwives"],["8690","8695","S","Physiotherapy"],["8690","8696","S","Traditional medicine"],["8690","8699","S","Other health activities"],
 ["8710","8710","=",""],["8720","8720","=",""],["8730","8730","=",""],
 ["8790","8799","=","Other residential care"],
-["8810","8810","=",""],["8891","8891","=",""],
-["8899","8899","=",""],
+["8810","8810","=",""],["8891","8891","=",""],["8899","8899","=",""],
 ["9001","9011","S","Literary creation"],["9001","9012","S","Visual arts"],["9001","9013","S","Other artistic creation"],
 ["9002","9020","=","Performing arts"],
 ["9003","9031","S","Operation of arts facilities"],["9003","9039","S","Other performing arts support"],
@@ -906,8 +896,7 @@ var CORR=[
 ["9103","9130","=","Conservation and restoration"],
 ["9104","9141","S","Botanical and zoological gardens"],["9104","9142","S","Nature reserves"],
 ["9200","9200","=",""],
-["9311","9311","=",""],["9312","9312","=",""],
-["9313","9313","R","Fitness facilities"],
+["9311","9311","=",""],["9312","9312","=",""],["9313","9313","R","Fitness facilities"],
 ["9319","9319","=",""],["9321","9321","=",""],["9329","9329","=",""],
 ["9411","9411","=",""],["9412","9412","=",""],["9420","9420","=",""],["9491","9491","=",""],["9492","9492","=",""],["9499","9499","=",""],
 ["9511","9510","R","Repair of computers and communication"],["9512","9510","R","Repair of communication equipment"],
@@ -919,81 +908,6 @@ var CORR=[
 ["9609","9691","S","Personal services at home"],["9609","9699","S","Other personal services"],
 ["9700","9700","=",""],["9810","9810","=",""],["9820","9820","=",""],["9900","9900","=",""]
 ];
-/* ===== SECTION METADATA ===== */
-var SECTIONS={};
-DATA.forEach(function(d){
-    if(!SECTIONS[d[0]]){SECTIONS[d[0]]={name:d[1],codes:[]};}
-    SECTIONS[d[0]].codes.push(d);
-});
-var SECTION_LETTERS=Object.keys(SECTIONS).sort();
-var activeFilters={};
-
-/* ===== HIGHLIGHT HELPER ===== */
-function highlightText(text,query){
-    if(!query)return text;
-    var escaped=query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    var re=new RegExp('('+escaped+')','gi');
-    return text.replace(re,'<mark>$1</mark>');
-}
-
-/* ===== BUILD TABLE ===== */
-function buildTable(query){
-    var q=(query||'').trim().toLowerCase();
-    var wrap=document.getElementById('tableWrap');
-    var noRes=document.getElementById('noResults');
-    var hasActiveFilters=Object.keys(activeFilters).length>0;
-    var html='';
-    var totalShown=0;
-
-    SECTION_LETTERS.forEach(function(letter){
-        if(hasActiveFilters && !activeFilters[letter]) return;
-        var sec=SECTIONS[letter];
-        var rows=[];
-        sec.codes.forEach(function(d){
-            var code=d[3], desc=d[4], div=d[2];
-            if(q){
-                var match=code.toLowerCase().indexOf(q)>-1 || desc.toLowerCase().indexOf(q)>-1 || div.toLowerCase().indexOf(q)>-1;
-                if(!match) return;
-            }
-            var descHtml=q?highlightText(desc,query):desc;
-            var codeHtml=q?highlightText(code,query):code;
-            rows.push('<tr><td class="col-code"><span class="code-badge">'+codeHtml+'</span></td><td class="col-div"><span class="div-badge">'+div+'</span></td><td><span class="caen-desc">'+descHtml+'</span></td></tr>');
-        });
-        if(rows.length===0) return;
-        totalShown+=rows.length;
-        var isCollapsed=q?'':'collapsed';
-        html+='<div class="table-wrap">';
-        html+='<div class="section-header '+isCollapsed+'" onclick="this.classList.toggle(\'collapsed\');this.nextElementSibling.classList.toggle(\'collapsed\')">';
-        html+='<span class="section-letter">'+letter+'</span>';
-        html+='<span class="section-title">'+sec.name+'</span>';
-        html+='<span class="section-count">'+rows.length+' codes</span>';
-        html+='<svg class="section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
-        html+='</div>';
-        html+='<div class="section-body '+isCollapsed+'" style="max-height:'+rows.length*50+'px">';
-        html+='<table class="caen-table"><thead><tr><th class="col-code">Code</th><th class="col-div">Division</th><th>Activity Description</th></tr></thead><tbody>';
-        html+=rows.join('');
-        html+='</tbody></table></div></div>';
-    });
-
-    wrap.innerHTML=html;
-    document.getElementById('statResults').textContent=totalShown;
-
-    if(totalShown===0 && (q || hasActiveFilters)){
-        noRes.style.display='block';
-    } else {
-        noRes.style.display='none';
-    }
-
-    var countEl=document.getElementById('searchCount');
-    var clearEl=document.getElementById('clearBtn');
-    if(q || hasActiveFilters){
-        countEl.innerHTML='Showing <strong>'+totalShown+'</strong> of <strong>'+DATA.length+'</strong> activity codes';
-        clearEl.classList.add('visible');
-    } else {
-        countEl.innerHTML='Showing all <strong>'+DATA.length+'</strong> activity codes';
-        clearEl.classList.remove('visible');
-    }
-}
 
 /* ===== SEARCH CORRESPONDENCE ===== */
 function searchCorrespondence(){
@@ -1066,60 +980,26 @@ function searchCorrespondence(){
     resultsDiv.innerHTML=html;
 }
 
-/* ===== CLEAR SEARCH ===== */
-function clearSearch(){
-    document.getElementById('searchInput').value='';
-    activeFilters={};
-    document.querySelectorAll('.filter-btn').forEach(function(b){b.classList.remove('active')});
-    buildTable('');
-}
-
 /* ===== SCROLL TO TOP ===== */
 window.addEventListener('scroll',function(){
     var btn=document.getElementById('scrollTop');
-    if(window.scrollY>400){btn.classList.add('visible');}
-    else{btn.classList.remove('visible');}
+    if(btn){
+        if(window.scrollY>400){btn.classList.add('visible');}
+        else{btn.classList.remove('visible');}
+    }
 });
 
 /* ===== INIT ===== */
 document.addEventListener('DOMContentLoaded',function(){
-    document.getElementById('statClasses').textContent=DATA.length;
-
-    var filterRow=document.getElementById('filterRow');
-    SECTION_LETTERS.forEach(function(letter){
-        var btn=document.createElement('button');
-        btn.className='filter-btn';
-        btn.textContent=letter;
-        btn.title=SECTIONS[letter].name;
-        btn.onclick=function(){
-            if(activeFilters[letter]){
-                delete activeFilters[letter];
-                btn.classList.remove('active');
-            } else {
-                activeFilters[letter]=true;
-                btn.classList.add('active');
-            }
-            buildTable(document.getElementById('searchInput').value);
-        };
-        filterRow.appendChild(btn);
-    });
-
-    var searchInput=document.getElementById('searchInput');
-    var debounceTimer;
-    searchInput.addEventListener('input',function(){
-        clearTimeout(debounceTimer);
-        debounceTimer=setTimeout(function(){buildTable(searchInput.value);},200);
-    });
-
     var corrInput=document.getElementById('corrSearchInput');
-    var corrTimer;
-    corrInput.addEventListener('input',function(){
-        clearTimeout(corrTimer);
-        corrTimer=setTimeout(function(){searchCorrespondence();},300);
-    });
-    corrInput.addEventListener('keydown',function(ev){
-        if(ev.key==='Enter'){ev.preventDefault();searchCorrespondence();}
-    });
-
-    buildTable('');
+    if(corrInput){
+        var corrTimer;
+        corrInput.addEventListener('input',function(){
+            clearTimeout(corrTimer);
+            corrTimer=setTimeout(function(){searchCorrespondence();},300);
+        });
+        corrInput.addEventListener('keydown',function(ev){
+            if(ev.key==='Enter'){ev.preventDefault();searchCorrespondence();}
+        });
+    }
 });
